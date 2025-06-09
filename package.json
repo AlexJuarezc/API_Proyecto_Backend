@@ -10,6 +10,7 @@
   "license": "ISC",
   "description": "",
   "dependencies": {
+    "@sqlitecloud/drivers": "^1.0.507",
     "csv-parser": "^3.2.0",
     "csv-stringify": "^6.5.2",
     "express": "^5.1.0"

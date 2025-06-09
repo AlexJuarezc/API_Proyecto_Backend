@@ -52,15 +52,15 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function renderUserItem(user) {
-        return `<li>ID: ${user.id || 'N/A'} - Nombre: ${user.name || 'N/A'} - Email: ${user.email || 'N/A'}</li>`;
+        return `<li>DNI: ${user.dni || 'N/A'} - Nombre: ${user.nombre || 'N/A'} - Email: ${user.email || 'N/A'}</li>`;
     }
 
     function renderPatientItem(patient) {
-        return `<li>ID: ${patient.id || 'N/A'} - Nombre: ${patient.name || 'N/A'} - Edad: ${patient.age || 'N/A'} - Diagnóstico: ${patient.diagnosis || 'N/A'}</li>`;
+        return `<li>ID: ${patient.id_cuenta || 'N/A'} - Nombre: ${patient.nombre || 'N/A'} - Email: ${patient.email || 'N/A'}</li>`;
     }
 
     function renderDoctorItem(doctor) {
-        return `<li>ID: ${doctor.id || 'N/A'} - Nombre: ${doctor.name || 'N/A'} - Especialidad: ${doctor.specialty || 'N/A'} - Teléfono: ${doctor.phone || 'N/A'}</li>`;
+        return `<li>Legajo: ${doctor.legajo || 'N/A'} - Nombre: ${doctor.nombre || 'N/A'} - Apellido: ${doctor.apellido || 'N/A'} - Especialidad: ${doctor.nombre_especialidad || 'N/A'} - Teléfono: ${doctor.telefono || 'N/A'}</li>`;
     }
 
     function loadUsers() {

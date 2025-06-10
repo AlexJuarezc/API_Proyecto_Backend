@@ -73,3 +73,200 @@ JOIN Especialidades e ON e.id_especialidad = m.id_especialidad;`);
   }
 });
 
+
+//   Ruta para actualizar a los doctores: Recibe { legajo, nuevoTel } en el body y actualiza solo el teléfono
+app.put('/api/doctors/update', async (req, res) => {
+  const { legajo, nuevoTel } = req.body;
+  if (!legajo || !nuevoTel) {
+    return res.status(400).json({ error: "Faltan datos requeridos (legajo o nuevoTel)." });
+  }
+
+  const legajoInt = parseInt(legajo, 10);
+  if (isNaN(legajoInt)) {
+    return res.status(400).json({ error: "Legajo inválido." });
+  }
+
+  try {
+    await db.sql('BEGIN;');
+
+    const result = await db.sql(`
+      UPDATE Personas
+      SET telefono = '${nuevoTel}'
+      WHERE dni = (SELECT dni FROM Medicos WHERE legajo = ${legajoInt});
+    `);
+
+    await db.sql('COMMIT;');
+    res.json({ message: "Médico actualizado exitosamente." });
+  } catch (err) {
+    await db.sql('ROLLBACK;');
+    console.error("Error al actualizar médico:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// DELETE /api/doctors/:legajo
+// Elimina al médico cuyo legajo se pasa como parámetro de ruta.
+app.delete('/api/doctors/:legajo', async (req, res) => {
+  const { legajo } = req.params;
+  const legajoInt = parseInt(legajo, 10);
+
+  // Validación del legajo
+  if (isNaN(legajoInt)) {
+    return res.status(400).json({ error: 'Legajo inválido.' });
+  }
+
+  try {
+    // Iniciar transacción
+    await db.sql('BEGIN;');
+
+    // Ejecutar DELETE
+    const result = await db.sql(`
+      DELETE FROM Medicos
+      WHERE legajo = ${legajoInt};
+    `);
+
+    await db.sql('COMMIT;');
+    res.json({ message: 'Médico eliminado exitosamente.' });
+  } catch (err) {
+    // Revertir en caso de error
+    await db.sql('ROLLBACK;');
+    console.error('Error al eliminar médico:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Ruta para guardar credenciales de pacientes
+app.post('/api/patient-credentials', async (req, res) => {
+  const { dni, password } = req.body;
+
+  if (!dni || !password) {
+    return res.status(400).json({ error: "Faltan datos (dni y/o password)" });
+  }
+
+  try {
+    const dniInt = parseInt(dni, 10);
+    // Usando comillas dobles para delimitar el campo con acento (si usas SQLite)
+    const query = `INSERT INTO Cuentas (contrasenia, dni) VALUES ('${password}', ${dniInt});`;
+  await db.sql(query);
+    res.json({ message: "Credenciales guardadas exitosamente en la tabla Cuentas." });
+  } catch (err) {
+    console.error("Error al insertar las credenciales:", err);
+    // Para desarrollo, retornar el error completo:
+    res.status(500).json({ error: err.message });
+    // En producción, es mejor no exponer detalles:
+    // res.status(500).json({ error: "Error al insertar las credenciales" });
+  }
+});
+
+// Ruta para guardar credenciales de Medicos
+app.post('/api/medicos', async (req, res) => {
+  const {
+    dni,
+    id_especialidad,
+    dias_atencion,
+    estado,
+    matricula,
+    hora_inicio,
+    hora_fin
+  } = req.body;
+
+  // Validación básica de campos
+  if (
+    !dni ||
+    !id_especialidad ||
+    !dias_atencion ||
+    !estado ||
+    !matricula ||
+    !hora_inicio ||
+    !hora_fin
+  ) {
+    return res.status(400).json({ error: "Faltan datos requeridos." });
+  }
+
+  try {
+    // Convertir los campos numéricos a enteros
+    const dniInt = parseInt(dni, 10);
+    const idEspecialidadInt = parseInt(id_especialidad, 10);
+    const matriculaInt = parseInt(matricula, 10);
+
+    // Construir la consulta de inserción usando interpolación, similar al ejemplo de Cuentas
+    const query = `INSERT INTO Medicos (dni, id_especialidad, dias_atencion, estado, matricula, hora_inicio, hora_fin)
+VALUES (${dniInt}, ${idEspecialidadInt}, '${dias_atencion}', '${estado}', ${matriculaInt}, '${hora_inicio}', '${hora_fin}');`;
+    
+    await db.sql(query);
+    res.json({ message: "Médico dado de alta exitosamente." });
+  } catch (err) {
+    console.error("Error al insertar médico:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+
+app.put('/api/patients/update', async (req, res) => {
+  const { id, nuevoNombre, nuevoEmail } = req.body;
+
+  if (!id || !nuevoNombre || !nuevoEmail) {
+    return res.status(400).json({ error: "Faltan datos requeridos para la actualización." });
+  }
+
+  const idInt = parseInt(id, 10); // conversión segura a entero
+
+  try {
+    await db.sql('BEGIN;');
+
+    // Actualiza el email en Cuentas
+    const updateEmailQuery = `
+      UPDATE Personas
+      SET email = '${nuevoEmail}'
+      WHERE dni = (SELECT dni FROM Cuentas WHERE id_cuenta = ${idInt});
+    `;
+    await db.sql(updateEmailQuery);
+
+    // Actualiza el nombre en Personas usando el dni desde Cuentas
+    const updateNombreQuery = `
+      UPDATE Personas
+      SET nombre = '${nuevoNombre}'
+      WHERE dni = (SELECT dni FROM Cuentas WHERE id_cuenta = ${idInt});
+    `;
+    await db.sql(updateNombreQuery);
+
+    await db.sql('COMMIT;');
+
+    res.json({ message: "Paciente actualizado exitosamente." });
+  } catch (err) {
+    await db.sql('ROLLBACK;');
+    console.error("Error al actualizar paciente:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.delete('/api/patients/:id', async (req, res) => {
+  const { id } = req.params;
+  
+  // Conversión segura a entero
+  const idInt = parseInt(id, 10);
+  if (isNaN(idInt)) {
+    return res.status(400).json({ error: "ID inválido." });
+  }
+  
+  try {
+    await db.sql('BEGIN;');
+    
+    // Elimina el paciente de la tabla Cuentas.
+    // Considera que, si existen registros en otras tablas relacionados con esta cuenta,
+    // es posible que debas eliminar esos registros o tener configuradas las opciones de CASCADE.
+    const deleteQuery = `
+      DELETE FROM Cuentas
+      WHERE id_cuenta = ${idInt};
+    `;
+    await db.sql(deleteQuery);
+    
+    await db.sql('COMMIT;');
+    
+    res.json({ message: "Paciente eliminado exitosamente." });
+  } catch (err) {
+    await db.sql('ROLLBACK;');
+    console.error("Error al eliminar paciente:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
